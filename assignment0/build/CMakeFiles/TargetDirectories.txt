@@ -1,3 +1,0 @@
-/home/jerry/GAMES101/pa0/build/CMakeFiles/Transformation.dir
-/home/jerry/GAMES101/pa0/build/CMakeFiles/edit_cache.dir
-/home/jerry/GAMES101/pa0/build/CMakeFiles/rebuild_cache.dir
