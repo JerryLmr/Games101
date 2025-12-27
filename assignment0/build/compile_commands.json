@@ -1,0 +1,8 @@
+[
+{
+  "directory": "/home/jerry/GAMES101/pa0/build",
+  "command": "/usr/bin/g++ -I/home/jerry/GAMES101/pa0/EIGEN3_INCLUDE_DIR -g -o CMakeFiles/Transformation.dir/main.cpp.o -c /home/jerry/GAMES101/pa0/main.cpp",
+  "file": "/home/jerry/GAMES101/pa0/main.cpp",
+  "output": "CMakeFiles/Transformation.dir/main.cpp.o"
+}
+]
