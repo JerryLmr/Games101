@@ -92,12 +92,14 @@ namespace rst
 
         std::vector<Eigen::Vector3f> frame_buf;
 
-        std::vector<float> depth_buf;
+        std::vector<std::array<float,4>> depth_buf_ssaa;
+        std::vector<std::array<Eigen::Vector3f, 4>> color_buf_ssaa;
         int get_index(int x, int y);
 
         int width, height;
 
         int next_id = 0;
         int get_next_id() { return next_id++; }
+        
     };
 }
