@@ -1,3 +1,4 @@
+#include <Eigen/Core>
 #include <iostream>
 #include <opencv2/opencv.hpp>
 
@@ -49,8 +50,24 @@ Eigen::Matrix4f get_model_matrix(float angle)
 
 Eigen::Matrix4f get_projection_matrix(float eye_fov, float aspect_ratio, float zNear, float zFar)
 {
-    // TODO: Use the same projection matrix from the previous assignments
+    //此处经过修改适配了https://zhuanlan.zhihu.com/p/509902950的投影矩阵
+   Eigen::Matrix4f projection = Eigen::Matrix4f::Zero();
 
+    float fov_rad = eye_fov * M_PI / 180.0f;
+    float tan_half_fov = std::tan(fov_rad / 2.0f);
+
+    // n = zNear, f = zFar
+    // n/r = 1 / (tan(fov/2) * aspect), n/t = 1 / tan(fov/2)
+    projection(0,0) = 1.0f / (tan_half_fov * aspect_ratio);
+    projection(1,1) = 1.0f / tan_half_fov;
+
+    float n = zNear, f = zFar;
+
+    projection(2,2) = -(f + n) / (f - n);
+    projection(2,3) = -(2.0f * n * f) / (f - n);
+    projection(3,2) = -1.0f;
+
+    return projection;
 }
 
 Eigen::Vector3f vertex_shader(const vertex_shader_payload& payload)
