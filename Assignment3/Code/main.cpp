@@ -1,4 +1,5 @@
 #include <Eigen/Core>
+#include <cmath>
 #include <iostream>
 #include <opencv2/opencv.hpp>
 
@@ -100,8 +101,7 @@ Eigen::Vector3f texture_fragment_shader(const fragment_shader_payload& payload)
     Eigen::Vector3f return_color = {0, 0, 0};
     if (payload.texture)
     {
-        // TODO: Get the texture value at the texture coordinates of the current fragment
-
+        return_color = payload.texture->getColor(payload.tex_coords[0], payload.tex_coords[1]);
     }
     Eigen::Vector3f texture_color;
     texture_color << return_color.x(), return_color.y(), return_color.z();
@@ -125,10 +125,27 @@ Eigen::Vector3f texture_fragment_shader(const fragment_shader_payload& payload)
 
     Eigen::Vector3f result_color = {0, 0, 0};
 
+    const Eigen::Vector3f n = normal.normalized();
+    const Eigen::Vector3f v = (eye_pos - point).normalized();
+    const Eigen::Vector3f ambient = ka.cwiseProduct(amb_light_intensity);
     for (auto& light : lights)
     {
-        // TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
-        // components are. Then, accumulate that result on the *result_color* object.
+        Eigen::Vector3f l = light.position - point;
+        float r2 = l.squaredNorm();
+        l.normalize();
+
+        Eigen::Vector3f h = (l + v).normalized();
+        Eigen::Vector3f intensity = light.intensity / r2;
+
+        float ndotl = n.dot(l);
+        if (ndotl < 0.f) ndotl = 0.f;
+        Eigen::Vector3f diffuse = kd.cwiseProduct(intensity) * ndotl;
+
+        float ndoth = n.dot(h);
+        if (ndoth < 0.f) ndoth = 0.f;
+        Eigen::Vector3f specular = ks.cwiseProduct(intensity) * std::pow(ndoth, p);
+
+        result_color += ambient + diffuse + specular;
 
     }
 
@@ -155,11 +172,29 @@ Eigen::Vector3f phong_fragment_shader(const fragment_shader_payload& payload)
     Eigen::Vector3f normal = payload.normal;
 
     Eigen::Vector3f result_color = {0, 0, 0};
+
+    const Eigen::Vector3f n = normal.normalized();
+    const Eigen::Vector3f v = (eye_pos - point).normalized();
+    const Eigen::Vector3f ambient = ka.cwiseProduct(amb_light_intensity);
+
     for (auto& light : lights)
     {
-        // TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
-        // components are. Then, accumulate that result on the *result_color* object.
-        
+        Eigen::Vector3f l = light.position - point;
+        float r2 = l.squaredNorm();
+        l.normalize();
+
+        Eigen::Vector3f h = (l + v).normalized();
+        Eigen::Vector3f intensity = light.intensity / r2;
+
+        float ndotl = n.dot(l);
+        if (ndotl < 0.f) ndotl = 0.f;
+        Eigen::Vector3f diffuse = kd.cwiseProduct(intensity) * ndotl;
+
+        float ndoth = n.dot(h);
+        if (ndoth < 0.f) ndoth = 0.f;
+        Eigen::Vector3f specular = ks.cwiseProduct(intensity) * std::pow(ndoth, p);
+
+        result_color += ambient + diffuse + specular;
     }
 
     return result_color * 255.f;
