@@ -3,6 +3,7 @@
 #include <iostream>
 #include <opencv2/opencv.hpp>
 
+#include "Eigen/src/Core/Matrix.h"
 #include "global.hpp"
 #include "rasterizer.hpp"
 #include "Triangle.hpp"
@@ -226,23 +227,70 @@ Eigen::Vector3f displacement_fragment_shader(const fragment_shader_payload& payl
     
     // TODO: Implement displacement mapping here
     // Let n = normal = (x, y, z)
+    const float x = normal.x();
+    const float y = normal.y();
+    const float z = normal.z();
+
     // Vector t = (x*y/sqrt(x*x+z*z),sqrt(x*x+z*z),z*y/sqrt(x*x+z*z))
+    const float denom = std::sqrt(x * x + z * z);
+    const Eigen::Vector3f t(x * y / denom, denom, z * y / denom);
+
     // Vector b = n cross product t
+    const Eigen::Vector3f b = normal.cross(t);
+
     // Matrix TBN = [t b n]
+    Eigen::Matrix3f TBN;
+    TBN << t.x(), b.x(), normal.x(),
+           t.y(), b.y(), normal.y(),
+           t.z(), b.z(), normal.z();
+
     // dU = kh * kn * (h(u+1/w,v)-h(u,v))
     // dV = kh * kn * (h(u,v+1/h)-h(u,v))
+    const float u = payload.tex_coords[0];
+    const float v = payload.tex_coords[1];
+    const float w = static_cast<float>(payload.texture->width);
+    const float h = static_cast<float>(payload.texture->height);
+    const float height_uv = payload.texture->getColor(u, v).norm();
+    const float height_u = payload.texture->getColor(u + 1.0f / w, v).norm();
+    const float height_v = payload.texture->getColor(u, v + 1.0f / h).norm();
+
+    const float dU = kh * kn * (height_u - height_uv);
+    const float dV = kh * kn * (height_v - height_uv);
+
     // Vector ln = (-dU, -dV, 1)
+    const Eigen::Vector3f ln(-dU, -dV, 1.0f);
+
     // Position p = p + kn * n * h(u,v)
+    point = point + kn * normal * height_uv;
     // Normal n = normalize(TBN * ln)
+    normal = (TBN * ln).normalized();
 
 
     Eigen::Vector3f result_color = {0, 0, 0};
+    const Eigen::Vector3f n = normal.normalized();
+    const Eigen::Vector3f v1 = (eye_pos - point).normalized();
+    const Eigen::Vector3f ambient = ka.cwiseProduct(amb_light_intensity);
 
     for (auto& light : lights)
     {
         // TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
         // components are. Then, accumulate that result on the *result_color* object.
+        Eigen::Vector3f l = light.position - point;
+        float r2 = l.squaredNorm();
+        l.normalize();
 
+        Eigen::Vector3f h = (l + v1).normalized();
+        Eigen::Vector3f intensity = light.intensity / r2;
+
+        float ndotl = n.dot(l);
+        if (ndotl < 0.f) ndotl = 0.f;
+        Eigen::Vector3f diffuse = kd.cwiseProduct(intensity) * ndotl;
+
+        float ndoth = n.dot(h);
+        if (ndoth < 0.f) ndoth = 0.f;
+        Eigen::Vector3f specular = ks.cwiseProduct(intensity) * std::pow(ndoth, p);
+
+        result_color += ambient + diffuse + specular;
 
     }
 
