@@ -6,8 +6,10 @@
 #define RAYTRACING_MATERIAL_H
 
 #include "Vector.hpp"
+#include "Vector.hpp"
+#include "global.hpp"
 
-enum MaterialType { DIFFUSE};
+enum MaterialType { DIFFUSE, MICROFACET};
 
 class Material{
 private:
@@ -92,6 +94,8 @@ public:
     float ior;
     Vector3f Kd, Ks;
     float specularExponent;
+    float roughness = 0.4f;
+    Vector3f F0 = Vector3f(0.04f);
     //Texture tex;
 
     inline Material(MaterialType t=DIFFUSE, Vector3f e=Vector3f(0,0,0));
@@ -132,6 +136,7 @@ Vector3f Material::getColorAt(double u, double v) {
 Vector3f Material::sample(const Vector3f &wi, const Vector3f &N){
     switch(m_type){
         case DIFFUSE:
+        case MICROFACET:
         {
             // uniform sample on the hemisphere
             float x_1 = get_random_float(), x_2 = get_random_float();
@@ -142,12 +147,13 @@ Vector3f Material::sample(const Vector3f &wi, const Vector3f &N){
             
             break;
         }
-    }
+}
 }
 
 float Material::pdf(const Vector3f &wi, const Vector3f &wo, const Vector3f &N){
     switch(m_type){
         case DIFFUSE:
+        case MICROFACET:
         {
             // uniform sample probability 1 / (2 * PI)
             if (dotProduct(wo, N) > 0.0f)
@@ -172,6 +178,43 @@ Vector3f Material::eval(const Vector3f &wi, const Vector3f &wo, const Vector3f &
             else
                 return Vector3f(0.0f);
             break;
+        }
+        case MICROFACET:
+        {
+            Vector3f V = normalize(-wi);
+            Vector3f L = normalize(wo);
+
+            float NoV = dotProduct(N, V);
+            float NoL = dotProduct(N, L);
+
+            if (NoV <= 0.0f || NoL <= 0.0f)
+                return Vector3f(0.0f);
+
+            Vector3f H = normalize(V + L);
+            float NoH = clamp(0.0f, 1.0f, dotProduct(N, H));
+            float VoH = clamp(0.0f, 1.0f, dotProduct(V, H));
+
+            float r = clamp(0.05f, 1.0f, roughness);
+            float alpha = r * r;
+            float alpha2 = alpha * alpha;
+
+            float denominator = NoH * NoH * (alpha2 - 1.0f) + 1.0f;
+            float D = alpha2 / (M_PI * denominator * denominator);
+
+            float t = 1.0f - VoH;
+            float t5 = t * t * t * t * t;
+            Vector3f F = F0 + (Vector3f(1.0f) - F0) * t5;
+
+            auto G1 = [alpha2](float cosine) {
+                return 2.0f * cosine /
+                    (cosine + std::sqrt(
+                        alpha2 + (1.0f - alpha2) * cosine * cosine));
+            };
+            float G = G1(NoV) * G1(NoL);
+            Vector3f specular = F * (D * G / (4.0f * NoV * NoL));
+            Vector3f diffuse = (Vector3f(1.0f) - F) * Kd / M_PI;
+
+            return diffuse + specular;
         }
     }
 }
