@@ -246,7 +246,11 @@ static void createKeyTables(void)
                                           XkbUseCoreKbd);
 
         // Find the X11 key code -> GLFW key code mapping
-        for (scancode = descr->min_key_code;  scancode <= descr->max_key_code;  scancode++)
+        // Some X servers advertise XKB but cannot provide a keyboard description.
+        // Leave keys unmapped in that case so the KeySym fallback below handles them.
+        for (scancode = descr ? descr->min_key_code : 0;
+             descr && descr->names && descr->names->keys && scancode <= descr->max_key_code;
+             scancode++)
         {
             memcpy(name, descr->names->keys[scancode].name, XkbKeyNameLength);
             name[XkbKeyNameLength] = 0;
@@ -309,7 +313,8 @@ static void createKeyTables(void)
                 _glfw.x11.publicKeys[scancode] = key;
         }
 
-        XkbFreeKeyboard(descr, 0, True);
+        if (descr)
+            XkbFreeKeyboard(descr, 0, True);
     }
 
     // Translate the un-translated key codes using traditional X11 KeySym
