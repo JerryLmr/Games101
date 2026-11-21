@@ -89,7 +89,8 @@ Vector3f Scene::castRay(const Ray &ray, int depth) const
     Intersection shadowInter = intersect(pTox);
 
     Vector3f L_dir = 0.0f;
-    if (shadowInter.happened && fabs(lightDistance - shadowInter.distance)< EPSILON) {
+    const float visibilityTolerance = 1e-3f;
+    if (shadowInter.happened && fabs(lightDistance - shadowInter.distance)< visibilityTolerance) {
         float cosSurface = std::max(0.0f, dotProduct(ws, N));
         float cosLight = std::max(0.0f, dotProduct(-ws, NN));
         L_dir = emit * inter.m->eval(wo, ws, N) * cosSurface * cosLight 
